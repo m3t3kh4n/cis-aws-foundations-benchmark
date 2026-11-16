@@ -1,3 +1,19 @@
+```
+$P = "staging"
+$env:AWS_RETRY_MODE = "adaptive"; $env:AWS_MAX_ATTEMPTS = "25"
+$regions = (aws ec2 describe-regions --profile $P --region us-east-1 --query 'Regions[].RegionName' --output text) -split '\s+'
+foreach ($R in $regions) {
+  foreach ($E in 'AssumeRole','GetSessionToken','GetFederationToken') {
+    $F = "${E}_${P}_${R}.json"
+    if ((Test-Path $F) -and ((Get-Item $F).Length -gt 0)) { continue }
+    Write-Host "$P $R $E"
+    $out = aws cloudtrail lookup-events --profile $P --region $R --lookup-attributes AttributeKey=EventName,AttributeValue=$E --start-time 2026-11-10T00:00:00Z --output json
+    if ($LASTEXITCODE -eq 0) { [IO.File]::WriteAllLines((Join-Path $PWD $F), $out) } else { Write-Warning "FAILED $F" }
+    Start-Sleep -Seconds 1
+  }
+}
+```
+
 Confirm which account you are in:
 
 aws sts get-caller-identity --profile PROFILE
